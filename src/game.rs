@@ -135,7 +135,7 @@ impl SnakeGame {
             }
 
             if let Some(snake) = &mut self.snake {
-                match snake.crawl(&mut self.board) {
+                match snake.crawl(&self.config, &mut self.board) {
                     Ok(true) => self.place_apple(1),
                     Err(error) => err = Some(error),
                     _ => {}

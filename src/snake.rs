@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 
 use crate::{
     board::{Board, Cell},
+    config::Config,
     game::SnakeError,
 };
 
@@ -39,23 +40,37 @@ impl Snake {
         }
     }
 
-    pub fn crawl(&mut self, board: &mut Board) -> Result<bool, SnakeError> {
+    pub fn crawl(&mut self, config: &Config, board: &mut Board) -> Result<bool, SnakeError> {
         assert!(!self.body.is_empty(), "headless body!");
+
+        let Config { wall_collisions } = &config;
 
         let head = *self.body.front().unwrap();
         let (width, height) = board.dimension();
         let (row, col) = (head / width, head % height);
 
-        let (collide, next_head) = match self.direction {
-            SnakeDirection::Up => (row <= 0, head.saturating_sub(width)),
-            SnakeDirection::Down => (row >= height - 1, head.saturating_add(width)),
-            SnakeDirection::Left => (col <= 0, head.saturating_sub(1)),
-            SnakeDirection::Right => (col >= width - 1, head.saturating_add(1)),
-            _ => (false, head),
+        let (collide, mut next_head, wrap_pos) = match self.direction {
+            SnakeDirection::Up => (
+                row <= 0,
+                head.saturating_sub(width),
+                (height - 1) * width + col,
+            ),
+
+            SnakeDirection::Down => (row >= height - 1, head.saturating_add(width), col),
+
+            SnakeDirection::Left => (col <= 0, head.saturating_sub(1), head + (width - 1)),
+
+            SnakeDirection::Right => (col >= width - 1, head.saturating_add(1), head - col),
+
+            _ => (false, head, head),
         };
 
         if collide {
-            Err(SnakeError::WallCollide)?
+            if *wall_collisions {
+                Err(SnakeError::WallCollide)?
+            }
+
+            next_head = wrap_pos;
         }
 
         if head == next_head {
